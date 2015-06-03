@@ -14,5 +14,6 @@ dependencies {
     compile 'com.sun.jersey:jersey-server:1.11'
     compile "com.google.guava:guava:${guava_version}"
     compile "com.netflix.archaius:archaius-core:${archaius_version}"
+    compile "com.netflix.hystrix:hystrix-rx-netty-metrics-stream:1.4.9"
     testCompile 'junit:junit:4.11'
 }
