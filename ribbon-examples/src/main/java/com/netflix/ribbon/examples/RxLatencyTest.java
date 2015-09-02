@@ -13,7 +13,6 @@ import com.netflix.loadbalancer.reactive.ExecutionContext;
 import com.netflix.loadbalancer.reactive.ExecutionInfo;
 import com.netflix.loadbalancer.reactive.ExecutionListener;
 import com.netflix.ribbon.ClientOptions;
-import com.netflix.ribbon.Ribbon;
 import com.netflix.ribbon.RibbonRequest;
 import com.netflix.ribbon.RibbonTransportFactory;
 import com.netflix.ribbon.examples.rx.RxMovieServer;
@@ -53,19 +52,19 @@ public class RxLatencyTest {
     RxMovieTemplateExample example = new RxMovieTemplateExample(RxMovieServer.DEFAULT_PORT);
     example.runExample();
 
-    /*
     HttpResourceGroup httpResourceGroup = HttpResourceGroup.Builder
         .newBuilder("testMovieServiceClient", ClientConfigFactory.DEFAULT, MyTransportFactory.INSTANCE)
         .withClientOptions(ClientOptions.create()
             .withMaxAutoRetriesNextServer(3)
             .withConfigurationBasedServerList("localhost:" + RxMovieServer.DEFAULT_PORT))
         .build();
-        */
 
+    /*
     HttpResourceGroup httpResourceGroup = Ribbon.createHttpResourceGroup("movieServiceClient",
         ClientOptions.create()
             .withMaxAutoRetriesNextServer(3)
             .withConfigurationBasedServerList("localhost:" + RxMovieServer.DEFAULT_PORT));
+            */
 
     HttpRequestTemplate<ByteBuf> template = httpResourceGroup.newTemplateBuilder("testRecommendationsByUserId")
         .withMethod("GET")
@@ -111,12 +110,18 @@ public class RxLatencyTest {
   }
 
   private static void observe(RibbonRequest<ByteBuf> request) throws Exception {
+      long start = System.currentTimeMillis();
       request
           .toObservable()
           .map((b) ->
             b.toString(Charset.defaultCharset())
           )
-          .subscribe(System.out::println);
+          .subscribe((s) -> {
+            long diff = System.currentTimeMillis() - start;
+            if (diff > 500) {
+              System.out.println("Long wait: " + diff);
+            }
+          });
   }
 
   public static void main(String[] args) {
@@ -157,16 +162,18 @@ public class RxLatencyTest {
     @Override
     public void onExecutionSuccess(ExecutionContext<I> context, O response, ExecutionInfo info) {
       long startTime = (long) context.get("startTime");
-      long diff = System.currentTimeMillis() - startTime;
+      long now = System.currentTimeMillis();
+      long diff = now - startTime;
       if (diff > 500) {
-        System.out.println("Success: " + diff + "ms");
+        long serverStartTime = (long) context.get("serverStartTime");
+        System.out.println("High Latency: " + diff + "ms Since server start: " + (now - serverStartTime) + "ms");
       }
     }
 
     @Override
     public void onStartWithServer(ExecutionContext<I> context, ExecutionInfo info)
         throws AbortExecutionException {
-
+      context.put("serverStartTime", System.currentTimeMillis());
     }
 
     @Override
